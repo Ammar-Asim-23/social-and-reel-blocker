@@ -1,0 +1,12 @@
+node_modules/
+.expo/
+dist/
+android/
+ios/
+*.tgz
+*.keystore
+*.jks
+*.mobileprovision
+.env.local
+.DS_Store
+verification/
