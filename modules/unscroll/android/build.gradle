@@ -1,0 +1,15 @@
+apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
+
+group = 'app.unscroll.nativebridge'
+version = '1.0.0'
+
+android {
+  namespace 'app.unscroll.nativebridge'
+  defaultConfig { versionCode 1; versionName '1.0.0' }
+}
+
+dependencies {
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.json:json:20250517'
+}

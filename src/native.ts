@@ -1,5 +1,6 @@
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { Config, defaultConfig, emptyStatus, NativeStatus, validateConfig, LIMITS } from './model';
 
 type Bridge = {
@@ -12,6 +13,10 @@ type Bridge = {
   reset(): Promise<void>;
 };
 const native = requireOptionalNativeModule<Bridge>('Unscroll');
+export const nativeUnavailableMessage =
+  Platform.OS === 'web'
+    ? 'This browser preview cannot request permissions or list installed apps. Install an Unscroll APK to use protection.'
+    : 'The Unscroll protection module is missing from this installation. Install a rebuilt Unscroll app that includes the native module. Expo Go does not support this module.';
 const key = 'unscroll-config-v1';
 export const bridge = {
   available: !!native,
@@ -32,18 +37,16 @@ export const bridge = {
     return native ? { ...(await native.getStatus()), available: true } : { ...emptyStatus };
   },
   async authorize() {
-    if (!native)
-      throw new Error(
-        'Install a native development build to enable protection. Expo Go and the web preview cannot block other apps.',
-      );
+    if (!native) throw new Error(nativeUnavailableMessage);
     await native.requestAuthorization();
   },
   async selectApps() {
-    if (!native) throw new Error('App selection requires an iOS development build.');
+    if (!native) throw new Error(nativeUnavailableMessage);
     return native.selectApps();
   },
   async installedApps() {
-    return native ? native.getInstalledApps() : [];
+    if (!native) throw new Error(nativeUnavailableMessage);
+    return native.getInstalledApps();
   },
   async reset() {
     if (native) await native.reset();

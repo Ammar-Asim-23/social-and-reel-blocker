@@ -1,38 +1,95 @@
 import React from 'react';
-import { Pressable, Text, TextInput } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput } from 'react-native';
 import { Plus, Smartphone } from 'lucide-react-native';
 import { s, C } from '../styles';
 import type { AppController } from '../useAppController';
+import { Button } from '../components';
+import { LIMITS } from '../model';
+import { nativeUnavailableMessage } from '../native';
 export function InstalledAppsDialog({ controller }: { controller: AppController }) {
-  const { config, status, update, installed, search, setSearch, closeAfter } = controller;
+  const {
+    config,
+    status,
+    update,
+    installed,
+    search,
+    setSearch,
+    closeAfter,
+    saving,
+    appsLoading,
+    appsError,
+    loadInstalledApps,
+  } = controller;
+  const query = search.trim().toLocaleLowerCase();
+  const matches = installed.filter(
+    (a) =>
+      (a.name.toLocaleLowerCase().includes(query) || a.packageName.toLowerCase().includes(query)) &&
+      !config.apps.some((r) => r.packageName === a.packageName),
+  );
+  if (!status.available)
+    return (
+      <>
+        <Text style={s.modalTitle}>App selection is unavailable.</Text>
+        <Text accessibilityRole="alert" style={s.body}>
+          {nativeUnavailableMessage}
+        </Text>
+      </>
+    );
   return (
     <>
       <Text style={s.modalTitle}>A stronger boundary.</Text>
-      <Text style={s.body}>Add an installed app for whole-app blocking.</Text>
+      <Text style={s.body}>
+        Find an installed app, then tap its Add button for whole-app blocking.
+      </Text>
       <TextInput
         accessibilityLabel="Search installed apps"
         placeholder="Search apps"
         style={[s.input, { marginTop: 16 }]}
         value={search}
         onChangeText={setSearch}
+        autoCorrect={false}
+        autoCapitalize="none"
+        editable={!appsLoading && !saving}
       />
-      {!status.available && (
-        <Text style={s.hint}>Installed apps require a native Android build.</Text>
+      {appsLoading && (
+        <ActivityIndicator
+          accessibilityLabel="Loading installed apps"
+          color={C.dark}
+          style={{ marginTop: 20 }}
+        />
       )}
-      {installed
-        .filter(
-          (a) =>
-            a.name.toLowerCase().includes(search.toLowerCase()) &&
-            !config.apps.some((r) => r.packageName === a.packageName),
-        )
-        .map((a) => (
+      {appsError && (
+        <>
+          <Text accessibilityRole="alert" style={s.inlineError}>
+            {appsError}
+          </Text>
+          <Button title="Try again" secondary onPress={() => void loadInstalledApps()} />
+        </>
+      )}
+      {!appsLoading && !appsError && matches.length === 0 && (
+        <Text style={s.hint}>
+          {query
+            ? 'No new apps match this search. Try another name. Apps already on your Apps screen are not listed here.'
+            : 'No additional apps found in this Android profile. Apps already on your Apps screen are not listed here.'}
+        </Text>
+      )}
+      {config.apps.length >= LIMITS.apps && (
+        <Text style={s.hint}>You have reached the {LIMITS.apps}-app limit.</Text>
+      )}
+      {!appsLoading &&
+        !appsError &&
+        matches.map((a) => (
           <Pressable
             key={a.packageName}
             accessibilityRole="button"
+            accessibilityLabel={`Add ${a.name} to blocked apps`}
+            disabled={saving || config.apps.length >= LIMITS.apps}
             onPress={() =>
               void update((c) => ({
                 ...c,
-                apps: [...c.apps, { ...a, id: a.packageName, mode: 'full' }],
+                apps: c.apps.some((r) => r.packageName === a.packageName)
+                  ? c.apps
+                  : [...c.apps, { ...a, id: a.packageName, mode: 'full' }],
               })).then(closeAfter)
             }
             style={s.appRow}
@@ -40,6 +97,7 @@ export function InstalledAppsDialog({ controller }: { controller: AppController 
             <Smartphone size={22} color={C.dark} />
             <Text style={[s.cardTitle, { flex: 1 }]}>{a.name}</Text>
             <Plus size={18} color={C.dark} />
+            <Text style={s.cardTitle}>Add</Text>
           </Pressable>
         ))}
     </>

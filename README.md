@@ -32,6 +32,20 @@ pnpm web
 
 Web and Expo Go are **preview only** and cannot inspect or block other apps. The UI labels them accordingly. The preview stores settings in browser storage; real installations start with protection paused and consent is required before enabling permissions.
 
+### APK reports a missing protection module
+
+An earlier ignore rule (`android/` and `ios/`) excluded the native module's source folders from EAS uploads, allowing an APK with no protection module. The rules now use `/android/` and `/ios/` to exclude only generated root projects. `modules/unscroll/android` and `modules/unscroll/ios` must remain in source control and build uploads. Do not restore the unanchored rules.
+
+Rebuild and install the new APK; changing permissions or reloading JavaScript cannot repair an old binary:
+
+```sh
+npx eas-cli@latest build --platform android --profile preview --clear-cache
+```
+
+The `eas-build-post-install` hook checks native source presence and Expo autolinking before compilation. Run `pnpm check:native` locally for the same check. This does not replace native compilation or device testing. Once the module is available, permission setup opens Android Accessibility settings and Add an app to block loads installed launcher apps. Search, then tap **Add** beside the result. Already configured apps are omitted from this picker.
+
+Deprecation warnings printed while downloading EAS CLI are separate from missing native sources. They are not Android permission errors. Do not force unrelated major-version overrides into the app to silence CLI warnings.
+
 ## Android development build
 
 Install Android Studio, an Android SDK, and JDK 17. Enable USB debugging on a test phone or configure an emulator. Device testing with the actual social apps is strongly recommended.

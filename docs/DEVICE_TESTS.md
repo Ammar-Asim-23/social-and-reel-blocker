@@ -38,3 +38,12 @@ Identifiers in `FeedDetector.kt` are conservative candidate anchors, not a guara
 ## Release gates
 
 Passing web tests is insufficient. Native compilation, device testing, signed distribution entitlements, Play Accessibility API declarations/disclosure review, and a public privacy policy must be completed before public distribution. No store-policy approval is implied by this repository.
+
+# Packaging regression
+
+- Build a fresh preview APK after the native-source ignore-rule fix. Verify the EAS log includes `Verified Unscroll native sources and android autolinking`.
+- Install the resulting APK over the previous build using the same signing key. Confirm it does not show a missing-module banner.
+- Permission setup must open Android Accessibility settings. Enable the service manually, return to Unscroll, and verify status refreshes.
+- Open Add an app to block: loading should complete, search an installed app not already configured (for example Facebook), tap **Add**, and confirm an Entire app rule appears and survives a restart.
+- Search a nonexistent name: verify an explicit no-results message. Configured apps should not appear twice.
+- Keep the keyboard open while searching and confirm the Add row is reachable and tappable.

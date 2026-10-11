@@ -1,5 +1,14 @@
 import React from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -25,6 +34,7 @@ import { FocusDialog } from './dialogs/FocusDialog';
 import { ScheduleDialog } from './dialogs/ScheduleDialog';
 import { InstalledAppsDialog } from './dialogs/InstalledAppsDialog';
 import { ResetDialog } from './dialogs/ResetDialog';
+import { nativeUnavailableMessage } from './native';
 function Main() {
   const controller = useAppController();
   const { p, config, status, update, tab, setTab, sheet, setSheet } = controller;
@@ -61,9 +71,7 @@ function Main() {
           {!status.available && (
             <View style={s.previewBanner}>
               <Smartphone size={16} color={C.ink} />
-              <Text style={s.previewText}>
-                Preview mode · Controls are saved locally. A native build is needed to block apps.
-              </Text>
+              <Text style={s.previewText}>{nativeUnavailableMessage}</Text>
             </View>
           )}
           {!config.onboarded && (
@@ -126,7 +134,10 @@ function Main() {
         animationType="slide"
         onRequestClose={() => setSheet(null)}
       >
-        <View style={s.modalBackdrop}>
+        <KeyboardAvoidingView
+          style={s.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={s.modal}>
             <View style={s.rowBetween}>
               <Text style={s.eyebrow}>A LITTLE SPACE FOR YOU</Text>
@@ -152,7 +163,7 @@ function Main() {
               )}
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
       {p.error && !sheet && (
         <View style={s.errorToast} accessibilityRole="alert">

@@ -1,0 +1,8 @@
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+  android:description="@string/unscroll_accessibility_description"
+  android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewSelected|typeViewScrolled"
+  android:accessibilityFeedbackType="feedbackGeneric"
+  android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows"
+  android:canRetrieveWindowContent="true"
+  android:notificationTimeout="150"
+  android:isAccessibilityTool="false" />

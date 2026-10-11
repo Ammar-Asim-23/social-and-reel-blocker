@@ -8,7 +8,7 @@ import { AppIcon, Button, Section, feedNames } from '../components';
 import { ios } from '../constants';
 import type { AppController } from '../useAppController';
 export function AppsScreen({ controller }: { controller: AppController }) {
-  const { config, status, update, saving, setSheet, setInstalled, setSearch, working, run, used } =
+  const { config, status, update, saving, openInstalledApps, appsLoading, working, run, used } =
     controller;
   return (
     <>
@@ -78,13 +78,8 @@ export function AppsScreen({ controller }: { controller: AppController }) {
           <Button
             title="Add an app to block"
             secondary
-            onPress={() =>
-              void run(async () => {
-                setInstalled(await bridge.installedApps());
-                setSearch('');
-                setSheet('apps');
-              })
-            }
+            disabled={appsLoading}
+            onPress={openInstalledApps}
           />
           <Text style={s.hint}>
             App updates and languages can affect detection. TikTok detection is experimental. If a

@@ -2,6 +2,7 @@ module.exports = {
   expo: {
     name: 'Unscroll',
     slug: 'unscroll',
+    extra: { eas: { projectId: '2d2fadc4-9aa8-4b7a-b25a-83d318648a23' } },
     version: '1.0.0',
     orientation: 'portrait',
     userInterfaceStyle: 'light',

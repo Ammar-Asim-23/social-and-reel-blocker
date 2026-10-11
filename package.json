@@ -17,6 +17,8 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
+    "check:native": "node scripts/check-native-module.cjs",
+    "eas-build-post-install": "node scripts/check-native-module.cjs",
     "prebuild": "expo prebuild",
     "export:web": "expo export --platform web"
   },

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useProtection } from './useProtection';
 import { Schedule, blockingReason, parseTime, timeLabel } from './model';
 import { ios } from './constants';
+import { bridge } from './native';
 export type Tab = 'Today' | 'Apps' | 'Routines' | 'Settings';
 export function useAppController() {
   const p = useProtection();
@@ -19,6 +20,26 @@ export function useAppController() {
   const [installed, setInstalled] = useState<{ name: string; packageName: string }[]>([]);
   const [search, setSearch] = useState('');
   const [working, setWorking] = useState(false);
+  const [appsLoading, setAppsLoading] = useState(false);
+  const [appsError, setAppsError] = useState<string | null>(null);
+  const loadInstalledApps = async () => {
+    setAppsLoading(true);
+    setAppsError(null);
+    setInstalled([]);
+    try {
+      setInstalled(await bridge.installedApps());
+    } catch (e) {
+      setAppsError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAppsLoading(false);
+    }
+  };
+  const openInstalledApps = () => {
+    p.setError(null);
+    setSearch('');
+    setSheet('apps');
+    void loadInstalledApps();
+  };
   const run = async (fn: () => Promise<unknown>) => {
     setWorking(true);
     p.setError(null);
@@ -114,6 +135,10 @@ export function useAppController() {
     search,
     setSearch,
     working,
+    appsLoading,
+    appsError,
+    loadInstalledApps,
+    openInstalledApps,
     setWorking,
     run,
     selected,

@@ -1,8 +1,9 @@
 node_modules/
 .expo/
 dist/
-android/
-ios/
+# Only generated app projects; modules/unscroll/android and ios are source code.
+/android/
+/ios/
 *.tgz
 *.keystore
 *.jks

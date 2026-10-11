@@ -35,6 +35,23 @@ These observed dependency paths are build/development tooling; Unscroll's applic
 
 ## Release checks
 
+### EAS CLI installation warnings
+
+Checked the locally installed npm EAS CLI dependency tree and the registry on October 11, 2026: `eas-cli@24.12.1` is current and still includes these deprecated transitive dependencies:
+
+| Warning | Observed CLI dependency path |
+| --- | --- |
+| `uuid@8.3.2` | `@expo/bunyan`, `@expo/rudder-sdk-node` |
+| `uuid@7.0.3` | `xcode` |
+| `glob@10.5.0` | `@expo/prebuild-config`'s nested config/config-plugins, `sucrase` |
+| `rimraf@2.4.5`, `glob@6.0.4`, `inflight@1.0.6` | `mv` → `rimraf` → `glob` → `inflight` |
+
+The CLI's own direct uuid dependency is already 11.1.1. These installation warnings remain unresolved upstream; they have not been suppressed or described as fixed. Running `npx eas-cli@latest` installs a separate temporary dependency tree, so this project's pnpm overrides do not change it. Updating the app's Expo SDK or forcing incompatible glob/rimraf major versions is not a verified remedy for that tree. The app's existing `xcode>uuid` override applies only to its own build dependencies.
+
+Reference: [Expo's upstream EAS CLI dependency-warning issue](https://github.com/expo/eas-cli/issues/3181). Deprecation notices and security advisories are separate signals; the audit findings above still require review.
+
+### Before release
+
 Compile Kotlin and Swift in CI and on supported devices; test the current social-app versions and languages; validate accessibility disclosure and store declarations; obtain Apple's distribution entitlements; use your own signing identities; run a fresh dependency audit; and complete the device checklist. CI configuration alone does not prove that a build has passed.
 
 If a security issue is found, keep any screen captures or device logs private and remove personal content before sharing. There is no public security-reporting address configured for this local project.

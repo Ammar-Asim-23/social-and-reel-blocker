@@ -1,13 +1,23 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { LockKeyhole, ShieldCheck } from 'lucide-react-native';
-import { bridge } from '../native';
+import { bridge, nativeUnavailableMessage } from '../native';
 import { s, C } from '../styles';
 import { Button } from '../components';
 import { ios } from '../constants';
 import type { AppController } from '../useAppController';
 export function PermissionDialog({ controller }: { controller: AppController }) {
   const { status, update, saving, working, run, ready, closeAfter } = controller;
+  if (!status.available)
+    return (
+      <>
+        <ShieldCheck size={36} color={C.dark} />
+        <Text style={s.modalTitle}>Protection is unavailable.</Text>
+        <Text accessibilityRole="alert" style={s.body}>
+          {nativeUnavailableMessage}
+        </Text>
+      </>
+    );
   return (
     <>
       <ShieldCheck size={36} color={C.dark} />
