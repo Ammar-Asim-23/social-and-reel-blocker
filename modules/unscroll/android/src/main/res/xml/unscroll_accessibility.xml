@@ -2,7 +2,8 @@
   android:description="@string/unscroll_accessibility_description"
   android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewSelected|typeViewScrolled"
   android:accessibilityFeedbackType="feedbackGeneric"
-  android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows"
+  android:packageNames="app.unscroll.focus.disabled"
+  android:accessibilityFlags="flagReportViewIds"
   android:canRetrieveWindowContent="true"
   android:notificationTimeout="150"
   android:isAccessibilityTool="false" />

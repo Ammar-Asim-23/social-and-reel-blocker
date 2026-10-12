@@ -6,6 +6,32 @@ import org.junit.Test
 import java.util.Calendar
 
 class RuleEngineTest {
+  @Test fun groupBudgetDoesNotConsumeOtherGroupUsage() {
+    val c = JSONObject("""{"enabled":true,"policy":"always","dailyMinutes":15,"focusUntil":0,"schedules":[],"groups":[{"id":"focus","policy":"scheduled","dailyMinutes":5},{"id":"daily","policy":"budget","dailyMinutes":5}],"apps":[{"packageName":"com.example.work","mode":"full","groupId":"focus"},{"packageName":"com.example.social","mode":"full","groupId":"daily"},{"packageName":"com.example.other","mode":"full"}]}""")
+    val usage = JSONObject("""{"apps":{"com.example.work":9999999,"com.example.social":299999}}""")
+    assertFalse(RuleEngine.shouldBlockApp(c, "com.example.work", usage, at(12, 12)))
+    assertFalse(RuleEngine.shouldBlockApp(c, "com.example.social", usage, at(12, 12)))
+    assertTrue(RuleEngine.shouldBlockApp(c, "com.example.other", usage, at(12, 12)))
+    usage.getJSONObject("apps").put("com.example.social", 300000)
+    assertTrue(RuleEngine.shouldBlockApp(c, "com.example.social", usage, at(12, 12)))
+    c.put("focusUntil", at(12, 13).timeInMillis)
+    assertTrue(RuleEngine.shouldBlockApp(c, "com.example.work", usage, at(12, 12)))
+    c.put("enabled", false)
+    assertFalse(RuleEngine.shouldBlockApp(c, "com.example.social", usage, at(12, 12)))
+  }
+  @Test fun rejectsUnknownGroupsAndInvalidPreferences() {
+    val c = JSONObject(validConfig).put("apps", org.json.JSONArray("""[{"id":"social","name":"Social","packageName":"com.example.social","mode":"full","groupId":"missing"}]"""))
+    assertThrows(IllegalArgumentException::class.java) { ConfigValidator.parse(c.toString()) }
+    assertThrows(IllegalArgumentException::class.java) { ConfigValidator.parse(JSONObject(validConfig).put("notifications", "yes").toString()) }
+    assertThrows(IllegalArgumentException::class.java) { ConfigValidator.parse(JSONObject(validConfig).put("groups", org.json.JSONArray("""[{"id":"default","name":"Duplicate","policy":"always","dailyMinutes":5}]""")).toString()) }
+  }
+  @Test fun accessibilityScopeIncludesOnlyEnabledRulesAndStopsWhenPaused() {
+    val c = JSONObject("""{"enabled":true,"apps":[{"packageName":"com.zhiliaoapp.musically","mode":"selective"},{"packageName":"com.example.blocked","mode":"full"},{"packageName":"com.example.private","mode":"off"}]}""")
+    assertEquals(setOf("com.zhiliaoapp.musically", "com.ss.android.ugc.trill", "com.example.blocked"), RuleEngine.monitoredPackages(c))
+    c.put("enabled", false)
+    assertTrue(RuleEngine.monitoredPackages(c).isEmpty())
+    assertTrue(RuleEngine.monitoredPackages(JSONObject()).isEmpty())
+  }
   private val validConfig = """{"version":1,"onboarded":true,"enabled":true,"policy":"always","dailyMinutes":15,"focusUntil":0,"apps":[],"schedules":[]}"""
   @Test fun nativeBoundaryRejectsOversizedAndMalformedSettings() {
     assertEquals(1, ConfigValidator.parse(validConfig).getInt("version"))

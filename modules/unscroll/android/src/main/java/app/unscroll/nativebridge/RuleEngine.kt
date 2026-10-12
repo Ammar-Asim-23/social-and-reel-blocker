@@ -4,6 +4,40 @@ import org.json.JSONObject
 import java.util.Calendar
 
 internal object RuleEngine {
+  private fun canonical(pkg: String) = if (pkg == "com.ss.android.ugc.trill") "com.zhiliaoapp.musically" else pkg
+  fun shouldBlockApp(c: JSONObject, packageName: String, usage: JSONObject, now: Calendar = Calendar.getInstance()): Boolean {
+    val apps = c.optJSONArray("apps") ?: return false
+    val rules = (0 until apps.length()).map { apps.getJSONObject(it) }
+    val app = rules.find { it.optString("packageName") == canonical(packageName) } ?: return false
+    if (app.optString("mode") == "off") return false
+    val groupId = app.optString("groupId", "")
+    val groups = c.optJSONArray("groups")
+    val group = groups?.let { (0 until it.length()).map { i -> it.getJSONObject(i) }.find { it.optString("id") == groupId } }
+    val totals = usage.optJSONObject("apps") ?: JSONObject()
+    val milliseconds = rules.filter { it.optString("groupId", "") == groupId }.sumOf {
+      val pkg = it.getString("packageName")
+      totals.optLong(pkg) + if (pkg == "com.zhiliaoapp.musically") totals.optLong("com.ss.android.ugc.trill") else 0L
+    }
+    val effective = JSONObject(c.toString())
+    if (group != null) {
+      effective.put("policy", group.getString("policy")); effective.put("dailyMinutes", group.getInt("dailyMinutes"))
+    }
+    return shouldBlock(effective, milliseconds / 1000, now)
+  }
+  fun monitoredPackages(c: JSONObject): Set<String> {
+    if (!c.optBoolean("enabled")) return emptySet()
+    val apps = c.optJSONArray("apps") ?: return emptySet()
+    val packages = mutableSetOf<String>()
+    for (i in 0 until apps.length()) {
+      val app = apps.optJSONObject(i) ?: continue
+      if (app.optString("mode") !in setOf("selective", "full")) continue
+      val pkg = app.optString("packageName")
+      if (pkg.isBlank()) continue
+      packages.add(pkg)
+      if (pkg == "com.zhiliaoapp.musically") packages.add("com.ss.android.ugc.trill")
+    }
+    return packages
+  }
   fun scheduleActive(s: JSONObject, now: Calendar): Boolean {
     if (!s.optBoolean("enabled")) return false
     val days = s.optJSONArray("days") ?: return false

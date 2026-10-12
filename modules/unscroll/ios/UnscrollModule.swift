@@ -1,6 +1,7 @@
 import ExpoModulesCore
 import FamilyControls
 import SwiftUI
+import UserNotifications
 
 public class UnscrollModule: Module {
   public func definition() -> ModuleDefinition {
@@ -8,55 +9,81 @@ public class UnscrollModule: Module {
     AsyncFunction("getConfig") { () -> String? in ProtectionShared.defaults.string(forKey: "config") }
     AsyncFunction("saveConfig") { (json: String) in
       let parsed = try FocusConfig.parse(Data(json.utf8))
-      let previous = ProtectionShared.defaults.string(forKey: "config")
+      let previous = ProtectionShared.snapshot()
       let priorConfig = ProtectionShared.config
-      let priorReached = ProtectionShared.defaults.string(forKey: "budgetReachedDay")
-      // A new allowance needs a new threshold callback, including earlier usage today.
-      if priorConfig?.dailyMinutes != parsed.dailyMinutes { ProtectionShared.defaults.removeObject(forKey: "budgetReachedDay") }
-      ProtectionShared.defaults.set(json, forKey: "config")
-      do { try ProtectionShared.reconcile() }
+      do {
+        var selections = ProtectionShared.selections
+        let wanted = Set(parsed.policies.map { $0.id })
+        // Deleting a group moves its private tokens to the default group.
+        for id in Array(selections.keys) where !wanted.contains(id) {
+          var fallback = selections["default"] ?? FamilyActivitySelection()
+          fallback.applicationTokens.formUnion(selections[id]?.applicationTokens ?? [])
+          selections["default"] = fallback; selections.removeValue(forKey: id)
+          ProtectionShared.clearBudget(id); ProtectionShared.clearBudget("default")
+        }
+        for group in parsed.policies {
+          let old = priorConfig?.policies.first { $0.id == group.id }
+          if old?.dailyMinutes != group.dailyMinutes || old?.policy != group.policy { ProtectionShared.clearBudget(group.id) }
+        }
+        try ProtectionShared.saveSelections(selections)
+        ProtectionShared.defaults.set(json, forKey: "config")
+        try ProtectionShared.reconcile()
+        if parsed.notifications != true { UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["unscroll.boundary"]) }
+      }
       catch {
-        ProtectionShared.defaults.set(previous, forKey: "config")
-        ProtectionShared.defaults.set(priorReached, forKey: "budgetReachedDay")
-        ProtectionShared.defaults.removeObject(forKey: "monitorSignatures")
-        try? ProtectionShared.reconcile()
+        ProtectionShared.restore(previous)
         throw error
       }
     }.runOnQueue(.main)
-    AsyncFunction("getStatus") { () -> [String: Any] in
-      ProtectionShared.apply()
-      let authorized = AuthorizationCenter.shared.authorizationStatus == .approved
-      return ["authorized": authorized, "serviceRunning": authorized,
-        "selectedApps": ProtectionShared.selection.applicationTokens.count,
-        "budgetReached": ProtectionShared.defaults.string(forKey: "budgetReachedDay") == ProtectionShared.dayKey(),
-        "usedSeconds": NSNull(), "interruptions": 0, "usageByApp": [:] as [String: Int]]
-    }.runOnQueue(.main)
+    AsyncFunction("getStatus") { () async -> [String: Any] in
+      let notifications = await UNUserNotificationCenter.current().notificationSettings()
+      return await MainActor.run {
+        ProtectionShared.apply()
+        let authorized = AuthorizationCenter.shared.authorizationStatus == .approved
+        let counts = ProtectionShared.selections.mapValues { $0.applicationTokens.count }
+        let budgets = Dictionary(uniqueKeysWithValues: (ProtectionShared.config?.policies ?? []).map { ($0.id, ProtectionShared.reached($0.id)) })
+        return ["authorized": authorized, "serviceRunning": authorized,
+          "selectedApps": counts.values.reduce(0, +), "selectedAppsByGroup": counts,
+          "budgetReached": ProtectionShared.reached("default"), "budgetReachedByGroup": budgets,
+          "notificationsAuthorized": notifications.authorizationStatus == .authorized || notifications.authorizationStatus == .provisional,
+          "featuresVersion": 2, "usedSeconds": NSNull(), "interruptions": 0, "usageByApp": [:] as [String: Int]]
+      }
+    }
+    AsyncFunction("requestNotificationPermission") { () async throws in
+      _ = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+    }
     AsyncFunction("requestAuthorization") { () async throws in
       try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
       try ProtectionShared.reconcile()
     }
-    AsyncFunction("selectApps") { (promise: Promise) in
+    AsyncFunction("selectApps") { (groupId: String, promise: Promise) in
       guard AuthorizationCenter.shared.authorizationStatus == .approved else { promise.reject("NOT_AUTHORIZED", "Allow Screen Time access first."); return }
+      guard groupId == "default" || ProtectionShared.config?.groups?.contains(where: { $0.id == groupId }) == true else { promise.reject("INVALID_GROUP", "Save the group before choosing apps."); return }
       guard let presenter = self.appContext?.utilities?.currentViewController() else { promise.reject("NO_VIEW", "Open Unscroll and try again."); return }
       var host: UIHostingController<SelectionScreen>?
-      let screen = SelectionScreen(initial: ProtectionShared.selection, onDone: { selection in
-        let old = ProtectionShared.selection
-        let priorReached = ProtectionShared.defaults.string(forKey: "budgetReachedDay")
+      let screen = SelectionScreen(initial: ProtectionShared.selections[groupId] ?? FamilyActivitySelection(), onDone: { selection in
+        let previous = ProtectionShared.snapshot()
         do {
-          try ProtectionShared.saveSelection(selection)
-          if old.applicationTokens != selection.applicationTokens { ProtectionShared.defaults.removeObject(forKey: "budgetReachedDay") }
+          var selections = ProtectionShared.selections
+          for id in Array(selections.keys) where id != groupId {
+            var other = selections[id]!
+            let old = other.applicationTokens
+            other.applicationTokens.subtract(selection.applicationTokens)
+            if old != other.applicationTokens { ProtectionShared.clearBudget(id) }
+            selections[id] = other
+          }
+          if selections[groupId]?.applicationTokens != selection.applicationTokens { ProtectionShared.clearBudget(groupId) }
+          selections[groupId] = selection
+          try ProtectionShared.saveSelections(selections)
           try ProtectionShared.reconcile()
           promise.resolve(selection.applicationTokens.count)
         } catch {
-          try? ProtectionShared.saveSelection(old)
-          ProtectionShared.defaults.set(priorReached, forKey: "budgetReachedDay")
-          ProtectionShared.defaults.removeObject(forKey: "monitorSignatures")
-          try? ProtectionShared.reconcile()
+          ProtectionShared.restore(previous)
           promise.reject("SELECTION_FAILED", error.localizedDescription)
         }
         host?.dismiss(animated: true); host = nil
       }, onCancel: {
-        promise.resolve(ProtectionShared.selection.applicationTokens.count)
+        promise.resolve(ProtectionShared.selections[groupId]?.applicationTokens.count ?? 0)
         host?.dismiss(animated: true); host = nil
       })
       host = UIHostingController(rootView: screen)
@@ -77,7 +104,7 @@ private struct SelectionScreen: View {
   var body: some View {
     NavigationStack {
       VStack {
-        Text("Select individual apps. Categories and websites are not supported.").font(.footnote).padding()
+        Text("Select individual apps. Choosing an app moves it out of its previous group. Categories and websites are not supported.").font(.footnote).padding()
         FamilyActivityPicker(selection: $selection)
       }
       .navigationTitle("Your boundaries")

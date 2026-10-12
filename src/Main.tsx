@@ -21,7 +21,8 @@ import {
   Smartphone,
   X,
 } from 'lucide-react-native';
-import { s, C } from './styles';
+import { useTheme, ThemeProvider } from './theme';
+import { AppLock } from './AppLock';
 import { Button } from './components';
 import { ios } from './constants';
 import { useAppController } from './useAppController';
@@ -34,9 +35,10 @@ import { FocusDialog } from './dialogs/FocusDialog';
 import { ScheduleDialog } from './dialogs/ScheduleDialog';
 import { InstalledAppsDialog } from './dialogs/InstalledAppsDialog';
 import { ResetDialog } from './dialogs/ResetDialog';
+import { GroupDialog } from './dialogs/GroupDialog';
 import { nativeUnavailableMessage } from './native';
-function Main() {
-  const controller = useAppController();
+function Main({ controller }: { controller: ReturnType<typeof useAppController> }) {
+  const { s, C } = useTheme();
   const { p, config, status, update, tab, setTab, sheet, setSheet } = controller;
   if (p.loading)
     return (
@@ -46,7 +48,7 @@ function Main() {
     );
   return (
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-      <StatusBar style="dark" />
+      <StatusBar style={config.theme === 'dark' ? 'light' : 'dark'} />
       <View style={s.shell}>
         <View style={s.header}>
           <View style={s.brand}>
@@ -156,6 +158,7 @@ function Main() {
               {sheet === 'schedule' && <ScheduleDialog controller={controller} />}
               {sheet === 'apps' && <InstalledAppsDialog controller={controller} />}
               {sheet === 'reset' && <ResetDialog controller={controller} />}
+              {sheet === 'group' && <GroupDialog controller={controller} />}
               {p.error && (
                 <Text accessibilityRole="alert" style={s.inlineError}>
                   {p.error}
@@ -181,9 +184,14 @@ function Main() {
   );
 }
 export default function App() {
+  const controller = useAppController();
   return (
     <SafeAreaProvider>
-      <Main />
+      <ThemeProvider dark={controller.config.theme === 'dark'}>
+        <AppLock>
+          <Main controller={controller} />
+        </AppLock>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

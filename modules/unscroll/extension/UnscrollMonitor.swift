@@ -13,8 +13,10 @@ class UnscrollMonitor: DeviceActivityMonitor {
   }
   override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
     super.eventDidReachThreshold(event, activity: activity)
-    guard activity == ProtectionShared.daily, event.rawValue == "allowance", ProtectionShared.config?.policy == "budget" else { return }
-    ProtectionShared.defaults.set(ProtectionShared.dayKey(), forKey: "budgetReachedDay")
+    guard activity == ProtectionShared.daily, event.rawValue.hasPrefix("allowance.") else { return }
+    let id = String(event.rawValue.dropFirst("allowance.".count))
+    guard ProtectionShared.config?.policies.contains(where: { $0.id == id && $0.policy == "budget" }) == true else { return }
+    ProtectionShared.markBudget(id)
     ProtectionShared.apply()
   }
 }

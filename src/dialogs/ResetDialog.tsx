@@ -1,10 +1,11 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { Trash2 } from 'lucide-react-native';
-import { s, C } from '../styles';
+import { useTheme } from '../theme';
 import { Button } from '../components';
 import type { AppController } from '../useAppController';
 export function ResetDialog({ controller }: { controller: AppController }) {
+  const { s, C } = useTheme();
   const { p, setTab, setSheet, run } = controller;
   return (
     <>

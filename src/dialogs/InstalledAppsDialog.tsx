@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput } from 'react-native';
-import { Plus, Smartphone } from 'lucide-react-native';
-import { s, C } from '../styles';
+import { Plus } from 'lucide-react-native';
+import { useTheme } from '../theme';
 import type { AppController } from '../useAppController';
 import { Button } from '../components';
 import { LIMITS } from '../model';
 import { nativeUnavailableMessage } from '../native';
+import { InstalledAppIcon } from '../InstalledAppIcon';
 export function InstalledAppsDialog({ controller }: { controller: AppController }) {
+  const { s, C } = useTheme();
   const {
     config,
     status,
@@ -21,6 +23,7 @@ export function InstalledAppsDialog({ controller }: { controller: AppController 
     loadInstalledApps,
   } = controller;
   const query = search.trim().toLocaleLowerCase();
+  const [limit, setLimit] = useState(40);
   const matches = installed.filter(
     (a) =>
       (a.name.toLocaleLowerCase().includes(query) || a.packageName.toLowerCase().includes(query)) &&
@@ -46,7 +49,11 @@ export function InstalledAppsDialog({ controller }: { controller: AppController 
         placeholder="Search apps"
         style={[s.input, { marginTop: 16 }]}
         value={search}
-        onChangeText={setSearch}
+        onChangeText={(value) => {
+          setSearch(value);
+          setLimit(40);
+        }}
+        placeholderTextColor={C.muted}
         autoCorrect={false}
         autoCapitalize="none"
         editable={!appsLoading && !saving}
@@ -78,7 +85,7 @@ export function InstalledAppsDialog({ controller }: { controller: AppController 
       )}
       {!appsLoading &&
         !appsError &&
-        matches.map((a) => (
+        matches.slice(0, limit).map((a) => (
           <Pressable
             key={a.packageName}
             accessibilityRole="button"
@@ -94,12 +101,15 @@ export function InstalledAppsDialog({ controller }: { controller: AppController 
             }
             style={s.appRow}
           >
-            <Smartphone size={22} color={C.dark} />
+            <InstalledAppIcon packageName={a.packageName} />
             <Text style={[s.cardTitle, { flex: 1 }]}>{a.name}</Text>
             <Plus size={18} color={C.dark} />
             <Text style={s.cardTitle}>Add</Text>
           </Pressable>
         ))}
+      {matches.length > limit && (
+        <Button title="Show more apps" secondary onPress={() => setLimit((value) => value + 40)} />
+      )}
     </>
   );
 }

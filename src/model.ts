@@ -1,6 +1,13 @@
 export type BlockMode = 'off' | 'selective' | 'full';
 export type Policy = 'always' | 'budget' | 'scheduled';
-export type AppRule = { id: string; name: string; packageName: string; mode: BlockMode };
+export type AppRule = {
+  id: string;
+  name: string;
+  packageName: string;
+  mode: BlockMode;
+  groupId?: string;
+};
+export type AppGroup = { id: string; name: string; policy: Policy; dailyMinutes: number };
 export type Schedule = {
   id: string;
   name: string;
@@ -18,6 +25,9 @@ export type Config = {
   focusUntil: number;
   apps: AppRule[];
   schedules: Schedule[];
+  groups?: AppGroup[];
+  theme?: 'light' | 'dark';
+  notifications?: boolean;
 };
 export type NativeStatus = {
   available: boolean;
@@ -28,8 +38,18 @@ export type NativeStatus = {
   interruptions: number;
   usageByApp: Record<string, number>;
   budgetReached?: boolean;
+  selectedAppsByGroup?: Record<string, number>;
+  budgetReachedByGroup?: Record<string, boolean>;
+  notificationsAuthorized?: boolean;
+  featuresVersion?: number;
 };
-export const LIMITS = { apps: 100, routines: 5, labelLength: 80, configBytes: 65536 } as const;
+export const LIMITS = {
+  apps: 100,
+  groups: 5,
+  routines: 5,
+  labelLength: 80,
+  configBytes: 65536,
+} as const;
 const packagePattern = /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/;
 const validLabel = (value: unknown, max: number = LIMITS.labelLength): value is string =>
   typeof value === 'string' && value.trim().length > 0 && value.length <= max;
@@ -52,6 +72,9 @@ export const defaultConfig: Config = {
     { id: 'snapchat', name: 'Snapchat', packageName: 'com.snapchat.android', mode: 'selective' },
   ],
   schedules: [],
+  groups: [],
+  theme: 'light',
+  notifications: false,
 };
 export const emptyStatus: NativeStatus = {
   available: false,
@@ -105,6 +128,27 @@ export function validateConfig(value: unknown): Config {
     !Array.isArray(c.schedules)
   )
     throw new Error('Invalid saved settings.');
+  const groups = c.groups ?? [];
+  if (
+    !Array.isArray(groups) ||
+    groups.length > LIMITS.groups ||
+    new Set(groups.map((g) => g?.id)).size !== groups.length ||
+    groups.some(
+      (g) =>
+        !g ||
+        !validLabel(g.id) ||
+        !/^[a-zA-Z0-9_-]+$/.test(g.id) ||
+        g.id === 'default' ||
+        !validLabel(g.name) ||
+        !['always', 'budget', 'scheduled'].includes(g.policy) ||
+        !Number.isInteger(g.dailyMinutes) ||
+        g.dailyMinutes < 1 ||
+        g.dailyMinutes > 180,
+    ) ||
+    (c.theme !== undefined && !['light', 'dark'].includes(c.theme)) ||
+    (c.notifications !== undefined && typeof c.notifications !== 'boolean')
+  )
+    throw new Error('Invalid group or preferences.');
   if (
     c.apps.length > LIMITS.apps ||
     new Set(c.apps.map((a) => a?.id)).size !== c.apps.length ||
@@ -117,7 +161,8 @@ export function validateConfig(value: unknown): Config {
         typeof a.packageName !== 'string' ||
         a.packageName.length > 255 ||
         !packagePattern.test(a.packageName) ||
-        !['off', 'selective', 'full'].includes(a.mode),
+        !['off', 'selective', 'full'].includes(a.mode) ||
+        (a.groupId !== undefined && !groups.some((g) => g.id === a.groupId)),
     )
   )
     throw new Error('Invalid app rule.');
@@ -147,4 +192,34 @@ export function validateConfig(value: unknown): Config {
   )
     throw new Error('Schedules need at least one day and a duration of 15 minutes or more.');
   return c;
+}
+
+export function groupUsageSeconds(
+  c: Config,
+  usage: Record<string, number>,
+  groupId?: string,
+): number {
+  return c.apps
+    .filter((a) => a.groupId === groupId)
+    .reduce(
+      (total, a) =>
+        total +
+        (usage[a.packageName] || 0) +
+        (a.packageName === 'com.zhiliaoapp.musically' ? usage['com.ss.android.ugc.trill'] || 0 : 0),
+      0,
+    );
+}
+
+export function groupBlockingReason(
+  c: Config,
+  groupId: string | undefined,
+  usedSeconds: number,
+  now = new Date(),
+) {
+  const group = c.groups?.find((g) => g.id === groupId);
+  return blockingReason(
+    group ? { ...c, policy: group.policy, dailyMinutes: group.dailyMinutes } : c,
+    usedSeconds,
+    now,
+  );
 }

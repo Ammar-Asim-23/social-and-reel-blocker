@@ -15,6 +15,18 @@ internal object ConfigValidator {
     require(integer(c.opt("version"), 1, 1) && c.opt("enabled") is Boolean && c.opt("onboarded") is Boolean) { "Invalid settings version" }
     require(c.optString("policy") in setOf("always", "budget", "scheduled")) { "Invalid policy" }
     require(integer(c.opt("dailyMinutes"), 1, 180) && integer(c.opt("focusUntil"), 0, 9007199254740991L)) { "Invalid time limit" }
+    require(!c.has("theme") || c.optString("theme") in setOf("light", "dark")) { "Invalid theme" }
+    require(!c.has("notifications") || c.opt("notifications") is Boolean) { "Invalid notifications preference" }
+    val groupIds = mutableSetOf<String>()
+    if (c.has("groups")) {
+      val groups = c.getJSONArray("groups")
+      require(groups.length() <= 5) { "Too many groups" }
+      for (i in 0 until groups.length()) {
+        val g = groups.getJSONObject(i); val id = g.optString("id")
+        require(label(id) && id != "default" && Regex("[a-zA-Z0-9_-]+").matches(id) && groupIds.add(id) && label(g.opt("name"))) { "Invalid group" }
+        require(g.optString("policy") in setOf("always", "budget", "scheduled") && integer(g.opt("dailyMinutes"), 1, 180)) { "Invalid group policy" }
+      }
+    }
     val apps = c.getJSONArray("apps")
     require(apps.length() <= 100) { "Too many apps" }
     val ids = mutableSetOf<String>(); val packages = mutableSetOf<String>()
@@ -24,6 +36,7 @@ internal object ConfigValidator {
       require(label(a.opt("id"), 255) && label(a.opt("name")) && pkg.length <= 255 && packagePattern.matches(pkg)) { "Invalid app rule" }
       require(ids.add(a.getString("id")) && packages.add(pkg)) { "Duplicate app rule" }
       require(a.optString("mode") in setOf("off", "selective", "full")) { "Invalid app mode" }
+      require(!a.has("groupId") || a.optString("groupId") in groupIds) { "Unknown app group" }
       require(pkg !in protectedPackages || a.optString("mode") == "off") { "This system app cannot be blocked" }
     }
     val routines = c.getJSONArray("schedules")

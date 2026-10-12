@@ -1,10 +1,11 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Focus } from 'lucide-react-native';
-import { s, C } from '../styles';
+import { useTheme } from '../theme';
 import { Button } from '../components';
 import type { AppController } from '../useAppController';
 export function FocusDialog({ controller }: { controller: AppController }) {
+  const { s, C } = useTheme();
   const {
     config,
     status,

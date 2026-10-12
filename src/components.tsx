@@ -1,8 +1,10 @@
 import React from 'react';
-import { Pressable, Switch, Text, View } from 'react-native';
+import { Platform, Pressable, Switch, Text, View } from 'react-native';
 import { ArrowRight, Smartphone } from 'lucide-react-native';
 import { AppRule } from './model';
-import { s, C } from './styles';
+import { useTheme } from './theme';
+import { InstalledAppIcon } from './InstalledAppIcon';
+import { bridge } from './native';
 export const feedNames: Record<string, string> = {
   youtube: 'Shorts',
   instagram: 'Reels',
@@ -26,6 +28,7 @@ export function Button({
   secondary?: boolean;
   disabled?: boolean;
 }) {
+  const { s, C } = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -53,29 +56,34 @@ export function Toggle({
   label: string;
   disabled?: boolean;
 }) {
+  const { C } = useTheme();
   return (
     <Switch
       accessibilityLabel={label}
       disabled={disabled}
       value={value}
       onValueChange={onChange}
-      trackColor={{ false: '#DDE1D7', true: '#729564' }}
+      trackColor={{ false: C.line, true: '#729564' }}
       thumbColor="white"
-      ios_backgroundColor="#DDE1D7"
+      ios_backgroundColor={C.line}
     />
   );
 }
 export function Tag({ children, warm }: { children: React.ReactNode; warm?: boolean }) {
+  const { s, C } = useTheme();
   return (
-    <View style={[s.tag, warm && { backgroundColor: '#F8EBDE' }]}>
+    <View style={[s.tag, warm && { backgroundColor: C.warm }]}>
       <View style={[s.dot, warm && { backgroundColor: '#C38C55' }]} />
       <Text style={s.tagText}>{children}</Text>
     </View>
   );
 }
 export function AppIcon({ app }: { app: AppRule }) {
+  const { s, C, dark } = useTheme();
+  if (Platform.OS === 'android' && bridge.available)
+    return <InstalledAppIcon packageName={app.packageName} />;
   return (
-    <View style={[s.appIcon, { backgroundColor: colors[app.id] || C.green }]}>
+    <View style={[s.appIcon, { backgroundColor: dark ? C.green : colors[app.id] || C.green }]}>
       {app.id === 'youtube' ? (
         <View style={s.youtube}>
           <Text style={{ color: 'white', fontSize: 12 }}>▶</Text>
@@ -101,6 +109,7 @@ export function Section({
   detail?: string;
   onPress?: () => void;
 }) {
+  const { s } = useTheme();
   return (
     <View style={s.sectionHeading}>
       <Text style={s.sectionTitle}>{title}</Text>

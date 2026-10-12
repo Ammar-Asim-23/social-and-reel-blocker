@@ -2,11 +2,12 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Focus, Sun } from 'lucide-react-native';
 import { timeLabel } from '../model';
-import { s, C } from '../styles';
+import { useTheme } from '../theme';
 import { Button, Section, Tag, Toggle } from '../components';
 import { fullDays } from '../constants';
 import type { AppController } from '../useAppController';
 export function RoutinesScreen({ controller }: { controller: AppController }) {
+  const { s, C } = useTheme();
   const { config, update, saving, setSheet, focused, openSchedule } = controller;
   return (
     <>

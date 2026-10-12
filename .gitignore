@@ -11,3 +11,6 @@ dist/
 .env.local
 .DS_Store
 verification/
+__pycache__/
+*-build.log
+*.xcresult/

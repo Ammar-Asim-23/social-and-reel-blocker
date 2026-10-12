@@ -1,10 +1,12 @@
 # Unscroll
 
-An independent React Native / Expo app for intentional social-media use. No account, analytics, server, or subscription. The Play Store description supplied for this project is the feature brief; this project does not use Shortstop's code or assets.
+An independent React Native / Expo app for intentional social-media use. No account, analytics, server, or subscription. The Play Store description supplied for this project is the feature brief;
 
 **Status: implemented development prototype, not a device-certified release.** The React Native interface, persistence, rule tests, web bundle, Android project generation, native autolinking, and iOS extension configuration have been checked. Native Kotlin/Swift compilation and actual blocking on phones have **not** been verified in this Windows environment (no Android SDK/JDK or Xcode). No APK or IPA has been produced. Follow the device checklist before relying on protection.
 
 ## Platform capabilities
+
+Accessibility remains optional but necessary for Android selective blocking. The service now subscribes only to enabled app rules, stops inspecting while paused, and can be disconnected from Settings. Android still grants a broad Accessibility capability; package filtering is a limit implemented by this app, not a narrower operating-system permission. Unneeded overlay, media/storage, microphone, camera, package-install, and all-package-query permissions are explicitly blocked. Keep Play Protect and device security protections enabled. See [permissions and distribution](docs/PERMISSIONS_AND_DISTRIBUTION.md) before installing or sharing builds.
 
 | Feature                           | Android                                                                                    | iOS 17.4+                                                         |
 | --------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |

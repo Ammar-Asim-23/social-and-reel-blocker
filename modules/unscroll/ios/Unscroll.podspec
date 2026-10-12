@@ -11,7 +11,7 @@ Pod::Spec.new do |s|
   s.static_framework = true
   s.dependency 'ExpoModulesCore'
   s.source_files = '*.{h,m,mm,swift}'
-  s.frameworks = 'FamilyControls', 'ManagedSettings', 'DeviceActivity', 'SwiftUI'
+  s.frameworks = 'FamilyControls', 'ManagedSettings', 'DeviceActivity', 'SwiftUI', 'UserNotifications'
   s.resource_bundles = { 'UnscrollPrivacy' => ['PrivacyInfo.xcprivacy'] }
   s.swift_version = '5.0'
 end

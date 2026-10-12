@@ -13,11 +13,12 @@ import {
   Sparkles,
 } from 'lucide-react-native';
 import { bridge } from '../native';
-import { s, C } from '../styles';
+import { useTheme } from '../theme';
 import { AppIcon, Section, Tag, Toggle, feedNames } from '../components';
 import { ios } from '../constants';
 import type { AppController } from '../useAppController';
 export function TodayScreen({ controller }: { controller: AppController }) {
+  const { s, C } = useTheme();
   const {
     config,
     status,
@@ -116,7 +117,7 @@ export function TodayScreen({ controller }: { controller: AppController }) {
         </Pressable>
       )}
       <View style={s.statsRow}>
-        <View style={[s.stat, { backgroundColor: '#EEEDE5' }]}>
+        <View style={[s.stat, { backgroundColor: C.soft }]}>
           <View style={s.rowBetween}>
             <Clock3 size={19} color={C.muted} />
             <Text style={s.eyebrow}>TODAY</Text>
@@ -129,7 +130,7 @@ export function TodayScreen({ controller }: { controller: AppController }) {
             {ios ? 'Usage managed by Screen Time' : 'In selected feeds / blocked apps'}
           </Text>
         </View>
-        <View style={[s.stat, { backgroundColor: '#F1E9DD' }]}>
+        <View style={[s.stat, { backgroundColor: C.warm }]}>
           <View style={s.rowBetween}>
             <EyeOff size={19} color={C.muted} />
             <Leaf size={16} color={C.muted} />

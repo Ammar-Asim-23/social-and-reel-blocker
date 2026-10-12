@@ -1,10 +1,11 @@
 import React from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { s, C } from '../styles';
+import { useTheme } from '../theme';
 import { Button } from '../components';
 import { fullDays } from '../constants';
 import type { AppController } from '../useAppController';
 export function ScheduleDialog({ controller }: { controller: AppController }) {
+  const { s, C } = useTheme();
   const {
     update,
     saving,

@@ -1,15 +1,19 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Check, Clock3, Minus, Plus, Shield, Smartphone, Sun } from 'lucide-react-native';
-import { BlockMode } from '../model';
+import { BlockMode, groupUsageSeconds, LIMITS } from '../model';
 import { bridge } from '../native';
-import { s, C } from '../styles';
+import { useTheme } from '../theme';
 import { AppIcon, Button, Section, feedNames } from '../components';
 import { ios } from '../constants';
 import type { AppController } from '../useAppController';
 export function AppsScreen({ controller }: { controller: AppController }) {
-  const { config, status, update, saving, openInstalledApps, appsLoading, working, run, used } =
+  const { s, C } = useTheme();
+  const { config, status, update, saving, openInstalledApps, appsLoading, working, run } =
     controller;
+  const { openGroup, groupReason } = controller;
+  const groupsSupported = !status.available || (status.featuresVersion || 0) >= 2;
+  const defaultUsed = Math.floor(groupUsageSeconds(config, status.usageByApp) / 60);
   return (
     <>
       <View style={s.pageHeading}>
@@ -21,6 +25,66 @@ export function AppsScreen({ controller }: { controller: AppController }) {
             : 'Block the feed, keep the connection.'}
         </Text>
       </View>
+      <Section title="App groups" detail={`${(config.groups || []).length} / ${LIMITS.groups}`} />
+      <Text style={[s.body, { marginBottom: 14 }]}>
+        Give each group its own boundary. Apps outside a custom group follow the default policy
+        below.
+      </Text>
+      {(config.groups || []).map((group) => (
+        <View key={group.id} style={[s.cardPadded, { marginBottom: 12 }]}>
+          <View style={s.rowBetween}>
+            <Text style={s.cardTitle}>{group.name}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${group.name}`}
+              disabled={saving || working}
+              onPress={() => openGroup(group)}
+            >
+              <Text style={s.cardTitle}>Edit</Text>
+            </Pressable>
+          </View>
+          <Text style={s.body}>
+            {group.policy === 'always'
+              ? 'Always block'
+              : group.policy === 'scheduled'
+                ? 'During focus time'
+                : `${group.dailyMinutes} min / day`}
+          </Text>
+          <Text style={s.small}>
+            {ios
+              ? status.selectedAppsByGroup?.[group.id] || 0
+              : config.apps.filter((a) => a.groupId === group.id).length}{' '}
+            apps · {groupReason(group) || 'Waiting for your rule'}
+          </Text>
+          {ios ? (
+            <View style={{ marginTop: 12 }}>
+              <Button
+                title={`Choose apps for ${group.name}`}
+                secondary
+                disabled={working || saving}
+                onPress={() => void run(() => bridge.selectApps(group.id))}
+              />
+            </View>
+          ) : (
+            <Text style={s.small}>
+              {config.apps
+                .filter((a) => a.groupId === group.id)
+                .map((a) => a.name)
+                .join(', ') || 'Edit to add apps'}
+            </Text>
+          )}
+        </View>
+      ))}
+      <Button
+        title="Create a group"
+        secondary
+        disabled={!groupsSupported || saving || (config.groups || []).length >= LIMITS.groups}
+        onPress={() => openGroup()}
+      />
+      {!groupsSupported && (
+        <Text style={s.hint}>Install the updated native build to use app groups.</Text>
+      )}
+      <Section title={ios ? 'Default group apps' : 'App boundaries'} />
       {ios ? (
         <View style={s.cardPadded}>
           <Smartphone color={C.dark} size={30} />
@@ -30,7 +94,7 @@ export function AppsScreen({ controller }: { controller: AppController }) {
             unavailable on iOS.
           </Text>
           <Text style={[s.cardTitle, { marginVertical: 20 }]}>
-            {status.selectedApps} apps selected
+            {status.selectedAppsByGroup?.default ?? status.selectedApps} apps in the default group
           </Text>
           <Button
             disabled={working}
@@ -47,6 +111,9 @@ export function AppsScreen({ controller }: { controller: AppController }) {
                 <View style={{ flex: 1 }}>
                   <Text style={s.cardTitle}>{a.name}</Text>
                   <Text style={s.small}>{feedNames[a.id] || 'Full app protection'}</Text>
+                  <Text style={s.small}>
+                    {config.groups?.find((g) => g.id === a.groupId)?.name || 'Default group'}
+                  </Text>
                 </View>
                 {a.mode !== 'off' && <Check size={18} color="#729564" />}
               </View>
@@ -87,14 +154,14 @@ export function AppsScreen({ controller }: { controller: AppController }) {
           </Text>
         </>
       )}
-      <Section title="When to protect" />
+      <Section title="Default group policy" />
       <View style={s.card}>
         {(
           [
             {
               key: 'always',
               title: 'Always',
-              desc: 'A standing boundary for selected apps.',
+              desc: 'A standing boundary for default-group apps.',
               icon: Shield,
             },
             {
@@ -164,14 +231,14 @@ export function AppsScreen({ controller }: { controller: AppController }) {
             <View
               style={[
                 s.progressFill,
-                { width: `${Math.min(100, (used / config.dailyMinutes) * 100)}%` },
+                { width: `${Math.min(100, (defaultUsed / config.dailyMinutes) * 100)}%` },
               ]}
             />
           </View>
           <Text style={[s.small, { marginTop: 9 }]}>
             {ios
               ? 'Screen Time enforces your allowance privately.'
-              : `${used} of ${config.dailyMinutes} minutes used today`}
+              : `${defaultUsed} of ${config.dailyMinutes} minutes used today in the default group`}
           </Text>
         </View>
       )}

@@ -4,6 +4,10 @@ No physical-device acceptance tests have been completed yet. Record the phone, O
 
 ## Android
 
+- Verify pause and reset stop Accessibility events/root inspection, changing rules immediately adjusts subscribed packages, and unrelated apps never enter feed traversal. Check the manifest and actual serviceInfo on a device.
+- Decline Accessibility: focus timing/settings remain usable and no UI claims that feeds are blocked. Reconnect, pause, and use Turn off Accessibility access; verify the system grant is revoked and protection stays off after restart.
+- Run the release APK permission inspection and keep Play Protect/device security enabled throughout installation testing. Record exact installation warnings; do not bypass them.
+
 1. Fresh install: service disabled, master switch off, no fabricated usage. Declining permission keeps the app usable. A missing service never shows protection as active.
 2. Agree to the disclosure, enable the service, return, and enable protection. Verify status updates after background/foreground transitions. Revoke access and verify status changes back.
 3. For each app, test navigation into and out of the short feed from every entry point: tab, search result, link, profile, and shared video. Test YouTube long-form player, subscriptions, music, Instagram DMs/stories/posts/search, Snapchat chat/stories, and TikTok inbox/profile separately. None of those should be blocked in selective mode unless actually viewing a targeted short-video feed.

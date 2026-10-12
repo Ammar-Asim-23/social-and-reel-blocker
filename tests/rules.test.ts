@@ -7,6 +7,9 @@ import {
   parseTime,
   validateConfig,
   Schedule,
+  Config,
+  groupBlockingReason,
+  groupUsageSeconds,
 } from '../src/model';
 const routine: Schedule = {
   id: 'night',
@@ -23,6 +26,58 @@ test('overnight routine starts Monday and ends Tuesday, not Sunday night', () =>
   assert.equal(isScheduleActive(routine, new Date(2026, 9, 13, 6, 59)), true);
   assert.equal(isScheduleActive(routine, new Date(2026, 9, 13, 7)), false);
   assert.equal(isScheduleActive(routine, monday(6)), false);
+});
+
+test('group policies isolate allowances and respect focus and master pause', () => {
+  const c: Config = {
+    ...defaultConfig,
+    enabled: true,
+    policy: 'scheduled',
+    groups: [
+      { id: 'always', name: 'Always', policy: 'always', dailyMinutes: 15 },
+      { id: 'budget', name: 'Daily', policy: 'budget', dailyMinutes: 5 },
+    ],
+    apps: defaultConfig.apps.map((a, i) => ({
+      ...a,
+      groupId: i === 0 ? 'always' : i === 1 ? 'budget' : undefined,
+    })),
+  };
+  validateConfig(c);
+  const usage = {
+    'com.google.android.youtube': 9999,
+    'com.instagram.android': 299,
+    'com.zhiliaoapp.musically': 20,
+    'com.ss.android.ugc.trill': 10,
+  };
+  assert.equal(groupUsageSeconds(c, usage, 'budget'), 299);
+  assert.equal(groupUsageSeconds(c, usage), 30);
+  assert.equal(groupBlockingReason(c, 'budget', 299, monday(12)), null);
+  assert.equal(groupBlockingReason(c, 'budget', 300, monday(12)), 'Daily allowance reached');
+  assert.equal(groupBlockingReason(c, 'always', 0, monday(12)), 'Always protected');
+  assert.equal(groupBlockingReason(c, undefined, 9999, monday(12)), null);
+  assert.equal(
+    groupBlockingReason({ ...c, focusUntil: monday(13).getTime() }, 'budget', 0, monday(12)),
+    'Focus session',
+  );
+  assert.equal(groupBlockingReason({ ...c, enabled: false }, 'always', 9999, monday(12)), null);
+});
+
+test('legacy configs load, while invalid groups and preferences are rejected', () => {
+  const { groups: _, theme: __, notifications: ___, ...legacy } = defaultConfig;
+  assert.equal(validateConfig(legacy), legacy);
+  const g = { id: 'social', name: 'Social', policy: 'always', dailyMinutes: 5 };
+  for (const change of [
+    { groups: [g, g] },
+    { groups: [{ ...g, id: 'default' }] },
+    { groups: [{ ...g, dailyMinutes: 0 }] },
+    { groups: Array.from({ length: 6 }, (_, i) => ({ ...g, id: `g${i}` })) },
+    { groups: {} },
+    { theme: 'unknown' },
+    { notifications: 'true' },
+    { apps: [{ ...defaultConfig.apps[0], groupId: 'missing' }] },
+  ]) {
+    assert.throws(() => validateConfig({ ...defaultConfig, ...change }));
+  }
 });
 test('Sunday overnight wraps into Monday', () => {
   assert.equal(isScheduleActive({ ...routine, days: [0] }, monday(6)), true);

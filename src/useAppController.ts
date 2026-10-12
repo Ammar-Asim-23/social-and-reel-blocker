@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { useProtection } from './useProtection';
-import { Schedule, blockingReason, parseTime, timeLabel } from './model';
+import {
+  AppGroup,
+  Schedule,
+  groupUsageSeconds,
+  groupBlockingReason,
+  parseTime,
+  timeLabel,
+} from './model';
 import { ios } from './constants';
 import { bridge } from './native';
 export type Tab = 'Today' | 'Apps' | 'Routines' | 'Settings';
@@ -8,10 +15,16 @@ export function useAppController() {
   const p = useProtection();
   const { config, status, update, saving } = p;
   const [tab, setTab] = useState<Tab>('Today');
-  const [sheet, setSheet] = useState<'permission' | 'focus' | 'schedule' | 'apps' | 'reset' | null>(
-    null,
-  );
+  const [sheet, setSheet] = useState<
+    'permission' | 'focus' | 'schedule' | 'apps' | 'reset' | 'group' | null
+  >(null);
   const [minutes, setMinutes] = useState(25);
+  const [editingGroup, setEditingGroup] = useState<AppGroup | null>(null);
+  const openGroup = (group?: AppGroup) => {
+    setEditingGroup(group || null);
+    p.setError(null);
+    setSheet('group');
+  };
   const [editing, setEditing] = useState<Schedule | null>(null);
   const [name, setName] = useState('Deep work');
   const [start, setStart] = useState('09:00');
@@ -58,10 +71,27 @@ export function useAppController() {
     status.authorized &&
     (ios ? status.selectedApps > 0 : status.serviceRunning && selected.length > 0);
   const enabled = config.enabled && ready;
-  const reason = blockingReason(
-    config,
-    status.budgetReached ? config.dailyMinutes * 60 : status.usedSeconds || 0,
+  const groupReason = (group?: AppGroup) =>
+    groupBlockingReason(
+      config,
+      group?.id,
+      ios
+        ? (group ? status.budgetReachedByGroup?.[group.id] : status.budgetReached)
+          ? (group?.dailyMinutes || config.dailyMinutes) * 60
+          : 0
+        : groupUsageSeconds(config, status.usageByApp, group?.id),
+    );
+  const activeGroups = [undefined, ...(config.groups || [])].filter(
+    (g) =>
+      (ios
+        ? (g
+            ? status.selectedAppsByGroup?.[g.id] || 0
+            : (status.selectedAppsByGroup?.default ?? status.selectedApps)) > 0
+        : selected.some((a) => a.groupId === g?.id)) && groupReason(g),
   );
+  const reason = activeGroups.length
+    ? `${activeGroups.length} ${activeGroups.length === 1 ? 'group has' : 'groups have'} active boundaries`
+    : null;
   const focused = config.focusUntil > Date.now();
   const used = Math.floor((status.usedSeconds || 0) / 60);
   const closeAfter = (result: boolean) => {
@@ -150,6 +180,9 @@ export function useAppController() {
     closeAfter,
     openSchedule,
     saveSchedule,
+    editingGroup,
+    openGroup,
+    groupReason,
   };
 }
 export type AppController = ReturnType<typeof useAppController>;

@@ -8,7 +8,10 @@ type Bridge = {
   saveConfig(json: string): Promise<void>;
   getStatus(): Promise<Omit<NativeStatus, 'available'>>;
   requestAuthorization(): Promise<void>;
-  selectApps(): Promise<number>;
+  revokeAuthorization?(): Promise<void>;
+  selectApps(groupId?: string): Promise<number>;
+  getAppIcon?(packageName: string): Promise<string | null>;
+  requestNotificationPermission?(): Promise<unknown>;
   getInstalledApps(): Promise<{ name: string; packageName: string }[]>;
   reset(): Promise<void>;
 };
@@ -40,9 +43,26 @@ export const bridge = {
     if (!native) throw new Error(nativeUnavailableMessage);
     await native.requestAuthorization();
   },
-  async selectApps() {
+  async selectApps(groupId = 'default') {
     if (!native) throw new Error(nativeUnavailableMessage);
-    return native.selectApps();
+    return native.selectApps(groupId);
+  },
+  async appIcon(packageName: string) {
+    return native?.getAppIcon ? native.getAppIcon(packageName) : null;
+  },
+  async requestNotifications() {
+    if (!native?.requestNotificationPermission)
+      throw new Error('Install the updated native build to enable notifications.');
+    await native.requestNotificationPermission();
+    if (!(await native.getStatus()).notificationsAuthorized)
+      throw new Error(
+        'Notifications are not allowed. Enable Unscroll notifications in your phone’s settings, then try again.',
+      );
+  },
+  async revokeAuthorization() {
+    if (!native?.revokeAuthorization)
+      throw new Error('Turn off Unscroll in Android Accessibility settings to revoke access.');
+    await native.revokeAuthorization();
   },
   async installedApps() {
     if (!native) throw new Error(nativeUnavailableMessage);
