@@ -22,7 +22,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { useTheme, ThemeProvider } from './theme';
-import { AppLock } from './AppLock';
+import { AppLock, AppLockScreen, useAppLock } from './AppLock';
 import { Button } from './components';
 import { ios } from './constants';
 import { useAppController } from './useAppController';
@@ -39,6 +39,7 @@ import { GroupDialog } from './dialogs/GroupDialog';
 import { nativeUnavailableMessage } from './native';
 function Main({ controller }: { controller: ReturnType<typeof useAppController> }) {
   const { s, C } = useTheme();
+  const lock = useAppLock();
   const { p, config, status, update, tab, setTab, sheet, setSheet } = controller;
   if (p.loading)
     return (
@@ -134,13 +135,20 @@ function Main({ controller }: { controller: ReturnType<typeof useAppController> 
         visible={sheet !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => setSheet(null)}
+        onRequestClose={() => {
+          if (!lock.covered) setSheet(null);
+        }}
       >
         <KeyboardAvoidingView
           style={s.modalBackdrop}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={s.modal}>
+          <View
+            style={s.modal}
+            pointerEvents={lock.covered ? 'none' : 'auto'}
+            accessibilityElementsHidden={lock.covered}
+            importantForAccessibility={lock.covered ? 'no-hide-descendants' : 'auto'}
+          >
             <View style={s.rowBetween}>
               <Text style={s.eyebrow}>A LITTLE SPACE FOR YOU</Text>
               <Pressable
@@ -166,6 +174,7 @@ function Main({ controller }: { controller: ReturnType<typeof useAppController> 
               )}
             </ScrollView>
           </View>
+          {lock.covered && <AppLockScreen />}
         </KeyboardAvoidingView>
       </Modal>
       {p.error && !sheet && (

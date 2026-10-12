@@ -41,6 +41,17 @@ Identifiers in `FeedDetector.kt` are conservative candidate anchors, not a guara
 
 ## Release gates
 
+### App lock lifecycle regression (Android and iOS)
+
+- Enable App lock with phone biometrics, then repeat with the device passcode. Success must return to Settings without another unlock loop.
+- Background Unscroll and return. Authenticate once; test both fast biometrics and the separate device-passcode activity. The next real departure must lock again.
+- With App lock enabled, open Add an app, type a search, and add an app. Opening the keyboard or a native dialog must not trigger a new lock.
+- From permission setup, open Android Accessibility settings, change access, and return. One successful unlock must restore the permission screen and its updated status.
+- Leave a partially edited group/routine dialog open, background and return, then unlock. Its form must still be present with the draft preserved. The lock must cover the dialog, including for accessibility navigation.
+- On iOS, open and cancel the Screen Time picker and authorization prompt. Temporary inactive events must not dismiss those native screens or create another authentication cycle.
+- Cancel or fail authentication, including after background/foreground transitions. Content must stay covered; retry must work. Simulate secure-storage read/write errors: failures must not silently disable an enabled lock.
+- Lock the phone, reopen it, pull down the notification drawer, and repeat rapid app switching. Verify system UI interruptions do not leave a spinner indefinitely. These checks require real devices; unit tests alone cannot verify OS callback timing.
+
 Passing web tests is insufficient. Native compilation, device testing, signed distribution entitlements, Play Accessibility API declarations/disclosure review, and a public privacy policy must be completed before public distribution. No store-policy approval is implied by this repository.
 
 # Packaging regression
